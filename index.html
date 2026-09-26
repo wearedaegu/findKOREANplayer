@@ -99,6 +99,8 @@ dialog input[type=text]{padding:10px}
 .it:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .it b{min-width:34px;color:var(--accent);text-align:center}
 .it small{color:var(--sub)}
+.it.dis{opacity:.4;cursor:not-allowed}
+.it.dis:hover{background:none}
 .row2{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .mv{display:flex;gap:6px;align-items:center;margin:8px 0;font-size:14px}
 </style></head><body><div class="wrap">
@@ -116,7 +118,7 @@ dialog input[type=text]{padding:10px}
 
 <!-- 포메이션 -->
 <div class="view" id="v-formation">
-  <div class="bar2"><select id="fm"></select><button id="clear">선수 모두 비우기</button></div>
+  <div class="bar2"><select id="fm"></select><button id="opt">최적 스쿼드</button><button id="clear">선수 모두 비우기</button><span id="optmsg" class="note"></span></div>
   <div class="hint">선수를 끌어서 다른 구역에 놓으면 포지션이 바뀌어요. 칸을 누르면 선수 선택과 포지션 이동을 할 수 있어요 (모바일은 이쪽).</div>
   <div class="main"><div><div class="field" id="field"></div>
     <div class="legend"><span><i style="background:var(--main)"></i>본 포지션</span><span><i style="background:var(--good)"></i>서브 포지션 숙련 2</span><span><i style="background:var(--ok)"></i>서브 포지션 숙련 1</span><span><i style="background:var(--bad)"></i>맞지 않는 포지션</span></div></div>
@@ -247,7 +249,14 @@ let state = {fm: "4-3-3", slots: newSlots("4-3-3")};
   const s = store.get(FKEY);
   if (s && PRESETS[s.fm] && Array.isArray(s.slots) && s.slots.length === 11 && s.slots.every(x => ZONES.includes(x.zone))) state = s;
 }
+// 같은 이름은 시즌(카드)이 달라도 같은 선수로 본다
+state.slots.reduce((seen, s) => {
+  const n = byId[s.id]?.name;
+  if (n && seen.has(n)) s.id = null; else if (n) seen.add(n);
+  return seen;
+}, new Set());
 const save = () => store.set(FKEY, state);
+const namesUsedExcept = idx => new Set(state.slots.filter((s, i) => i !== idx && s.id).map(s => byId[s.id].name));
 let editing = -1, dragging = -1;
 
 $("fm").innerHTML = Object.keys(PRESETS).map(k => `<option>${k}</option>`).join("");
@@ -321,23 +330,79 @@ $("mvsel").onchange = () => { state.slots[editing].zone = $("mvsel").value; $("d
 function list() {
   const q = $("dq").value.trim().toLowerCase();
   const zone = state.slots[editing].zone;
-  const used = new Set(state.slots.map(s => s.id));
+  const used = namesUsedExcept(editing);
   const items = PLAYERS.filter(p => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
   const usePos = $("dpos").checked;
   items.sort((a, b) => (usePos ? FIT_ORDER[fit(a, zone)] - FIT_ORDER[fit(b, zone)] : 0) || b.ovr - a.ovr);
   $("dres").innerHTML = items.slice(0, 80).map(p => `
-    <div class="it" data-id="${p.id}"><b>${p.ovr}</b>
-    <div>${esc(p.name)}${used.has(p.id) ? " (배치됨)" : ""}<br><small>${esc(p.pos)} · ${esc(p.team)}</small></div></div>`).join("")
+    <div class="it ${used.has(p.name) ? "dis" : ""}" data-id="${p.id}"><b>${p.ovr}</b>
+    <div>${esc(p.name)}${used.has(p.name) ? " (이미 배치됨)" : ""}<br><small>${esc(p.pos)} · ${esc(p.team)}</small></div></div>`).join("")
     || '<div style="padding:16px;color:var(--sub)">검색 결과가 없어요</div>';
 }
 $("dq").oninput = list; $("dpos").onchange = list;
 $("dclose").onclick = () => $("dlg").close();
 $("drm").onclick = () => { state.slots[editing].id = null; save(); render(); $("dlg").close(); };
 $("dres").onclick = e => {
-  const el = e.target.closest(".it"); if (!el) return;
-  const j = state.slots.findIndex(s => s.id === el.dataset.id);
-  if (j >= 0) state.slots[j].id = null;     // 이미 다른 자리에 있으면 옮긴다
+  const el = e.target.closest(".it"); if (!el || el.classList.contains("dis")) return;
   state.slots[editing].id = el.dataset.id; save(); render(); $("dlg").close();
+};
+
+/* ---------- 최적 스쿼드 ---------- */
+// 목표: 선수(이름 기준 1명당 카드 1장)를 각 자리에 배정해 점수 합을 최대로 한다.
+// 점수 = OVR - 포지션 감점. 감점 값은 임의로 정한 값이라 필요하면 여기서 조절한다.
+const FIT_PENALTY = {main: 0, good: 3, ok: 6, bad: 25};
+const IMPOSSIBLE = -1e4;                       // 골키퍼만 GK 자리에, GK는 GK 자리에만
+function slotValue(p, zone) {
+  if ((zone === "GK") !== (p.pos === "GK")) return IMPOSSIBLE;
+  return p.ovr - FIT_PENALTY[fit(p, zone)];
+}
+// 헝가리안 알고리즘 (최소 비용 배정, 행 수 <= 열 수). 반환: 행마다 선택된 열 번호
+function hungarian(a) {
+  const n = a.length, m = a[0].length;
+  const u = Array(n + 1).fill(0), v = Array(m + 1).fill(0), pp = Array(m + 1).fill(0), way = Array(m + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    pp[0] = i; let j0 = 0;
+    const minv = Array(m + 1).fill(Infinity), used = Array(m + 1).fill(false);
+    do {
+      used[j0] = true;
+      const i0 = pp[j0]; let delta = Infinity, j1 = 0;
+      for (let j = 1; j <= m; j++) if (!used[j]) {
+        const cur = a[i0 - 1][j - 1] - u[i0] - v[j];
+        if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+      }
+      for (let j = 0; j <= m; j++) { if (used[j]) { u[pp[j]] += delta; v[j] -= delta; } else minv[j] -= delta; }
+      j0 = j1;
+    } while (pp[j0] !== 0);
+    do { const j1 = way[j0]; pp[j0] = pp[j1]; j0 = j1; } while (j0);
+  }
+  const ans = Array(n).fill(-1);
+  for (let j = 1; j <= m; j++) if (pp[j]) ans[pp[j] - 1] = j - 1;
+  return ans;
+}
+function optimize() {
+  const names = [...new Set(PLAYERS.map(p => p.name))];
+  const cards = names.map(n => PLAYERS.filter(p => p.name === n));
+  const n = state.slots.length, m = Math.max(names.length, n);   // 부족하면 빈 열로 채운다
+  const best = [];                                               // best[slot][name] = {value, card}
+  const cost = state.slots.map((s, i) => {
+    best[i] = cards.map(cs => cs.map(c => ({value: slotValue(c, s.zone), card: c})).sort((x, y) => y.value - x.value)[0]);
+    return Array.from({length: m}, (_, j) => j < names.length ? -best[i][j].value : 0);
+  });
+  const pick = hungarian(cost);
+  state.slots.forEach((s, i) => {
+    const b = pick[i] < names.length ? best[i][pick[i]] : null;
+    s.id = b && b.value > IMPOSSIBLE / 2 ? b.card.id : null;
+  });
+  save(); render();
+}
+$("opt").onclick = () => {
+  if (state.slots.some(s => s.id) && !confirm("현재 배치를 지우고 최적 스쿼드로 바꿀까요?")) return;
+  const before = state.slots.filter(s => s.id).map(s => byId[s.id].ovr);
+  optimize();
+  const after = state.slots.filter(s => s.id).map(s => byId[s.id].ovr);
+  const avg = a => a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : "-";
+  $("optmsg").textContent = `평균 OVR ${avg(before)} → ${avg(after)} (${after.length}명)`;
 };
 
 /* ---------- 시작 ---------- */
