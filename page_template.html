@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eFootball 한국 선수</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--text:#1d2330;--sub:#6b7385;--line:#e3e6ec;--accent:#2a5bd7;--zone:#e9ecf2;--zonetext:#aab1c2;
+ --main:#12b981;--good:#5fcf9f;--ok:#e4b93c;--bad:#e2585c;--chiptext:#0b1a14}
+@media(prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b202b;--text:#e8ebf2;--sub:#98a1b5;--line:#2b3242;--accent:#6c95ff;--zone:#1c212c;--zonetext:#4a5266}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,"Malgun Gothic",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px 16px}
+.tabs{display:flex;gap:4px;padding-top:10px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tab{padding:9px 20px;border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;background:transparent;color:var(--sub);font-size:15px;cursor:pointer;margin-bottom:-1px}
+.tab.on{background:var(--card);color:var(--text);font-weight:700;border-bottom:1px solid var(--card)}
+.view{display:none}.view.on{display:block}
+input[type=text]{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)}
+select,button{padding:8px 12px;font-size:15px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}
+/* 선수 검색 */
+.grid{display:grid;grid-template-columns:340px 1fr;gap:16px;margin-top:14px;align-items:start}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.list{background:var(--card);border:1px solid var(--line);border-radius:10px;max-height:78vh;overflow:auto}
+.item{display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:hover,.item.on{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.ovr{min-width:38px;text-align:center;font-weight:700;color:var(--accent)}
+.item small{color:var(--sub)}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.head{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.head img{height:110px;border-radius:8px}
+.head h2{margin:0;font-size:22px}
+.meta{color:var(--sub);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chipx{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px}
+.chipx.com{border-color:var(--accent);color:var(--accent)}
+h3{font-size:15px;margin:16px 0 6px}
+.two{display:grid;grid-template-columns:230px 1fr;gap:18px;margin-top:14px}
+@media(max-width:600px){.two{grid-template-columns:1fr}}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px}
+@media(max-width:600px){.stats{grid-template-columns:1fr}}
+.row{display:grid;grid-template-columns:96px 34px 1fr;align-items:center;gap:8px}
+.row span:first-child{color:var(--sub);font-size:14px}
+.row b{text-align:right}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.empty{color:var(--sub);padding:24px;text-align:center}
+/* 포지션 지도 (선수 상세) */
+.pmap{display:grid;grid-template-columns:1fr 1.15fr 1fr;grid-template-rows:1.25fr .6fr 1.3fr 1.3fr;gap:4px;height:250px}
+.pmap .col{display:grid;gap:4px;grid-auto-rows:1fr;min-height:0}
+.pc{border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1.1;background:var(--zone);color:var(--zonetext);font-weight:600;min-height:0}
+.pc b{font-size:15px}
+.pc.f-main{background:var(--main);color:var(--chiptext)}
+.pc.f-good{background:var(--good);color:var(--chiptext)}
+.pc.f-ok{background:var(--ok);color:var(--chiptext)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.note{font-size:12px;color:var(--sub);margin-top:4px}
+/* 포메이션 */
+.bar2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.hint{color:var(--sub);font-size:13px;margin-bottom:10px}
+.main{display:grid;grid-template-columns:minmax(0,480px) 1fr;gap:16px;align-items:start}
+@media(max-width:820px){.main{grid-template-columns:1fr}}
+.field{--cw:60px;position:relative;display:grid;grid-template-columns:1fr 1.15fr 1fr;grid-template-rows:1.3fr .6fr 1.5fr 1.5fr;height:880px;padding:14px 10px;background:#171b21;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+@media(max-width:600px){.field{--cw:46px}}
+.lines{position:absolute;inset:8px;pointer-events:none;border:2px solid #ffffff22;border-radius:4px}
+.lines i{position:absolute;border:2px solid #ffffff22}
+.lines .cl{left:0;right:0;top:50%;border-width:2px 0 0}
+.lines .cc{left:50%;top:50%;width:26%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%)}
+.lines .bt{left:22%;right:22%;top:0;height:14%;border-top:0}
+.lines .bb{left:22%;right:22%;bottom:0;height:14%;border-bottom:0}
+.field .col{position:relative;z-index:1;display:grid;grid-auto-rows:1fr;min-height:0}
+.zone{position:relative;display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:6px;min-height:0;padding:2px;border:1.5px dashed transparent;border-radius:8px}
+.zone.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.zl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#ffffff26;pointer-events:none}
+.zone.has .zl{display:none}
+.card{width:var(--cw);cursor:grab;user-select:none;text-align:center}
+.card:active{cursor:grabbing}
+.face{position:relative;aspect-ratio:.72;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1.5px solid #ffffff88;background:linear-gradient(160deg,#f6f8fb,#d3d9e8 45%,#a5e9cf 75%,#b3a9f5)}
+.face img{width:100%;height:100%;object-fit:cover;display:block}
+.face .zt{position:absolute;top:3px;left:0;right:0;font-size:11px;font-weight:700;color:#222}
+.face .tag{position:absolute;left:2px;bottom:2px;font-size:10px;font-weight:700;padding:0 4px;border-radius:3px;background:#000b;color:#fff}
+.face .fb{font-size:20px;font-weight:800;color:#222}
+.plus{width:58%;aspect-ratio:1;border-radius:50%;background:#000;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;margin-top:10px}
+.g-att{color:#ff4d6d}.g-mid{color:#22c98a}.g-def{color:#4d7cff}.g-gk{color:#ffb43a}
+.plate{margin-top:3px;border-radius:4px;padding:1px 3px;font-size:10px;font-weight:700;line-height:1.35;background:#2a303b;color:#c5cad6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plate.f-main{background:var(--main);color:var(--chiptext)}.plate.f-good{background:var(--good);color:var(--chiptext)}
+.plate.f-ok{background:var(--ok);color:var(--chiptext)}.plate.f-bad{background:var(--bad);color:var(--chiptext)}
+.side{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.side h3{margin:0 0 8px;font-size:16px}
+.sum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.sum div{background:var(--bg);border-radius:8px;padding:8px 10px}
+.sum b{display:block;font-size:20px;color:var(--accent)}
+.sum span{font-size:12px;color:var(--sub)}
+.li{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}
+.li span:first-child{color:var(--sub);width:44px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);width:min(440px,94vw);padding:14px}
+dialog::backdrop{background:#0008}
+dialog input[type=text]{padding:10px}
+.res{max-height:40vh;overflow:auto;margin-top:8px}
+.it{display:flex;gap:10px;padding:8px;border-bottom:1px solid var(--line);cursor:pointer;align-items:center}
+.it:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.it b{min-width:34px;color:var(--accent);text-align:center}
+.it small{color:var(--sub)}
+.row2{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.mv{display:flex;gap:6px;align-items:center;margin:8px 0;font-size:14px}
+</style></head><body><div class="wrap">
+
+<div class="tabs" role="tablist">
+  <button class="tab on" data-tab="search">선수 검색</button>
+  <button class="tab" data-tab="formation">포메이션</button>
+</div>
+
+<!-- 선수 검색 -->
+<div class="view on" id="v-search">
+  <input type="text" id="q" placeholder="선수 이름 (예: Son, Kim Min-Jae, Hwang)">
+  <div class="grid"><div class="list" id="list"></div><div class="detail" id="detail"></div></div>
+</div>
+
+<!-- 포메이션 -->
+<div class="view" id="v-formation">
+  <div class="bar2"><select id="fm"></select><button id="clear">선수 모두 비우기</button></div>
+  <div class="hint">선수를 끌어서 다른 구역에 놓으면 포지션이 바뀌어요. 칸을 누르면 선수 선택과 포지션 이동을 할 수 있어요 (모바일은 이쪽).</div>
+  <div class="main"><div><div class="field" id="field"></div>
+    <div class="legend"><span><i style="background:var(--main)"></i>본 포지션</span><span><i style="background:var(--good)"></i>서브 포지션 숙련 2</span><span><i style="background:var(--ok)"></i>서브 포지션 숙련 1</span><span><i style="background:var(--bad)"></i>맞지 않는 포지션</span></div></div>
+    <div class="side"><h3>팀 요약</h3><div class="sum" id="sum"></div><div id="lineup"></div></div></div>
+</div>
+</div>
+
+<dialog id="dlg"><div class="row2"><b id="dt"></b><button id="dclose">닫기</button></div>
+<div class="mv">포지션 이동 <select id="mvsel"></select></div>
+<input type="text" id="dq" placeholder="선수 이름 검색">
+<label style="font-size:13px;color:var(--sub)"><input type="checkbox" id="dpos" checked> 이 포지션 우선 표시</label>
+<div class="res" id="dres"></div><button id="drm" style="margin-top:8px;width:100%">선수 빼기</button></dialog>
+
+<script>
+const PLAYERS = __DATA__;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const label = code => code.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase());
+const byId = Object.fromEntries(PLAYERS.map(p => [p.id, p]));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+
+// 경기장 배치: 4줄 × 3열 (가운데 열은 구역이 위아래로 쌓임)
+const LAYOUT = [
+ [["LWF"], ["CF","SS"], ["RWF"]],
+ [[], ["AMF"], []],
+ [["LMF"], ["CMF","DMF"], ["RMF"]],
+ [["LB"], ["CB","GK"], ["RB"]],
+];
+const ZONES = LAYOUT.flat(2);
+
+// 선수와 구역의 궁합: 본 포지션 / 서브 포지션 숙련도 2 / 1 / 안 맞음
+function fit(p, zone) {
+  if (!p) return "empty";
+  if (p.pos === zone) return "main";
+  const a = p.addPos.find(x => x.position === zone);
+  return a ? (a.familiarity >= 2 ? "good" : "ok") : "bad";
+}
+const FIT_ORDER = {main: 0, good: 1, ok: 2, bad: 3, empty: 4};
+
+/* ---------- 탭 ---------- */
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === name));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + name));
+  store.set("efootball-tab", name);
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+}
+document.querySelector(".tabs").addEventListener("click", e => {
+  const t = e.target.closest(".tab"); if (t) showTab(t.dataset.tab);
+});
+
+/* ---------- 선수 검색 ---------- */
+const GROUPS = [
+ ["공격", [["offensiveAwareness","공격 인식"],["ballControl","볼 컨트롤"],["dribbling","드리블"],["tightPossession","볼 소유"],["lowPass","땅볼 패스"],["loftedPass","로빙 패스"],["finishing","결정력"],["heading","헤더"],["setPieceTaking","세트피스"],["curl","커브"]]],
+ ["신체", [["speed","스피드"],["acceleration","가속력"],["kickingPower","킥력"],["jump","점프"],["physicalContact","피지컬"],["balance","밸런스"],["stamina","스태미나"]]],
+ ["수비", [["defensiveAwareness","수비 인식"],["ballWinning","볼 탈취"],["defensiveEngagement","수비 관여"],["aggression","적극성"]]],
+ ["골키퍼", [["gkAwareness","GK 인식"],["gkCatching","GK 캐칭"],["gkClearing","GK 클리어링"],["gkReflexes","GK 반응"],["gkReach","GK 리치"]]],
+];
+let selected = null;
+
+function renderList(items) {
+  $("list").innerHTML = items.length ? items.map(p => `
+    <div class="item ${p.id === selected ? "on" : ""}" data-id="${p.id}">
+      <div class="ovr">${p.ovr}</div>
+      <div><div>${esc(p.name)}</div><small>${esc(p.pos)} · ${esc(p.team)}</small></div>
+    </div>`).join("") : '<div class="empty">검색 결과가 없어요</div>';
+}
+
+// 포지션 지도: 본 포지션은 OVR, 서브 포지션은 숙련도. (포지션별 점수는 사이트 데이터에 없다)
+function posMap(p) {
+  const cell = z => {
+    const f = fit(p, z);
+    const body = f === "main" ? `<b>${p.ovr}</b>${z}` : f === "good" ? `${z}<br>숙련 2` : f === "ok" ? `${z}<br>숙련 1` : z;
+    return `<div class="pc f-${f}">${body}</div>`;
+  };
+  return `<div class="pmap">${LAYOUT.map(row => row.map(col => `<div class="col">${col.map(cell).join("")}</div>`).join("")).join("")}</div>
+    <div class="legend"><span><i style="background:var(--main)"></i>본 포지션</span><span><i style="background:var(--good)"></i>숙련 2</span><span><i style="background:var(--ok)"></i>숙련 1</span></div>
+    <div class="note">서브 포지션의 점수는 제공되지 않아 숙련도만 표시해요.</div>`;
+}
+
+function renderDetail(p) {
+  if (!p) { $("detail").innerHTML = '<div class="empty">왼쪽에서 선수를 골라 주세요</div>'; return; }
+  const groups = GROUPS.map(([title, keys]) => {
+    const rows = keys.filter(([k]) => p.stats[k] != null).map(([k, name]) => `
+      <div class="row"><span>${name}</span><b>${p.stats[k]}</b>
+      <div class="bar"><i style="width:${Math.min(100, p.stats[k])}%"></i></div></div>`).join("");
+    return `<h3>${title}</h3><div class="stats">${rows}</div>`;
+  }).join("");
+  $("detail").innerHTML = `
+    <div class="head">${p.img ? `<img src="${esc(p.img)}" alt="" onerror="this.remove()">` : ""}
+      <div><h2>${esc(p.name)} <span style="color:var(--accent)">${p.ovr}</span></h2>
+      <div class="meta">${esc(p.pos)} · ${esc(p.team)} · ${esc(p.style)}</div>
+      <div class="meta">${p.age}세 · ${p.height}cm / ${p.weight}kg · ${esc(p.foot)}발 · 약발 사용 ${p.wfu} / 정확도 ${p.wfa}</div>
+      <div class="meta">카드 ID ${p.id}</div></div></div>
+    <div class="two"><div><h3 style="margin-top:0">포지션</h3>${posMap(p)}</div>
+      <div><h3 style="margin-top:0">스킬</h3><div class="chips">${p.skills.map(s => `<span class="chipx">${esc(label(s))}</span>`).join("") || "-"}</div>
+      <h3>COM 플레이 스타일</h3><div class="chips">${p.com.map(s => `<span class="chipx com">${esc(label(s))}</span>`).join("") || "-"}</div></div></div>
+    ${groups}`;
+}
+
+function search() {
+  const q = $("q").value.trim().toLowerCase();
+  renderList(PLAYERS.filter(p => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q) || p.pos.toLowerCase() === q)
+                    .sort((a, b) => b.ovr - a.ovr));
+}
+$("q").addEventListener("input", search);
+$("list").addEventListener("click", e => {
+  const el = e.target.closest(".item"); if (!el) return;
+  selected = el.dataset.id; renderDetail(byId[selected]); search();
+});
+
+/* ---------- 포메이션 ---------- */
+const PRESETS = {
+ "4-3-3": ["GK","LB","CB","CB","RB","CMF","DMF","CMF","LWF","CF","RWF"],
+ "4-4-2": ["GK","LB","CB","CB","RB","LMF","CMF","CMF","RMF","CF","CF"],
+ "4-2-3-1": ["GK","LB","CB","CB","RB","DMF","DMF","LMF","AMF","RMF","CF"],
+ "3-5-2": ["GK","CB","CB","CB","LMF","CMF","DMF","CMF","RMF","CF","SS"],
+ "3-4-3": ["GK","CB","CB","CB","LMF","CMF","CMF","RMF","LWF","CF","RWF"],
+};
+const FGROUPS = {공격:["offensiveAwareness","ballControl","dribbling","finishing","lowPass","loftedPass"],
+ 신체:["speed","acceleration","kickingPower","physicalContact","stamina"], 수비:["defensiveAwareness","ballWinning","defensiveEngagement"]};
+const FKEY = "efootball-formation-v2";
+const newSlots = preset => PRESETS[preset].map(zone => ({zone, id: null}));
+let state = {fm: "4-3-3", slots: newSlots("4-3-3")};
+{
+  const s = store.get(FKEY);
+  if (s && PRESETS[s.fm] && Array.isArray(s.slots) && s.slots.length === 11 && s.slots.every(x => ZONES.includes(x.zone))) state = s;
+}
+const save = () => store.set(FKEY, state);
+let editing = -1, dragging = -1;
+
+$("fm").innerHTML = Object.keys(PRESETS).map(k => `<option>${k}</option>`).join("");
+$("fm").value = state.fm;
+$("fm").onchange = () => {
+  // 포메이션을 바꿔도 선수는 최대한 같은 포지션에 남긴다
+  const pool = state.slots.filter(s => s.id);
+  const next = PRESETS[$("fm").value].map(zone => {
+    const i = pool.findIndex(s => s.zone === zone);
+    return {zone, id: i >= 0 ? pool.splice(i, 1)[0].id : null};
+  });
+  next.forEach(s => { if (!s.id && pool.length) s.id = pool.shift().id; });
+  state = {fm: $("fm").value, slots: next}; save(); render();
+};
+$("clear").onclick = () => { if (confirm("배치한 선수를 모두 뺄까요?")) { state.slots.forEach(s => s.id = null); save(); render(); } };
+
+const GROUP = {LWF:"att",CF:"att",SS:"att",RWF:"att",AMF:"mid",LMF:"mid",CMF:"mid",DMF:"mid",RMF:"mid",LB:"def",CB:"def",RB:"def",GK:"gk"};
+function chip(i) {
+  const s = state.slots[i], p = byId[s.id], f = fit(p, s.zone);
+  if (!p) return `<div class="card" draggable="true" data-i="${i}"><div class="face"><span class="zt">${s.zone}</span><div class="plus g-${GROUP[s.zone]}">+</div></div><div class="plate">빈 자리</div></div>`;
+  const img = p.img ? `<img src="${esc(p.img)}" alt="" draggable="false" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'fb',textContent:'${p.ovr}'}))">` : `<span class="fb">${p.ovr}</span>`;
+  return `<div class="card" draggable="true" data-i="${i}"><div class="face">${img}<span class="tag">${s.zone}</span></div>
+    <div class="plate f-${f}" title="${esc(p.name)}">${esc(p.name.split(" ").slice(-1)[0])}</div></div>`;
+}
+function zoneHtml(z) {
+  const idx = state.slots.map((s, i) => s.zone === z ? i : -1).filter(i => i >= 0);
+  return `<div class="zone ${idx.length ? "has" : ""}" data-zone="${z}"><div class="zl">${z}</div>${idx.map(chip).join("")}</div>`;
+}
+function render() {
+  $("field").innerHTML = '<div class="lines"><i class="cl"></i><i class="cc"></i><i class="bt"></i><i class="bb"></i></div>' + LAYOUT.map(row => row.map(col => `<div class="col">${col.map(zoneHtml).join("")}</div>`).join("")).join("");
+  const ps = state.slots.map(s => byId[s.id]).filter(Boolean);
+  const avg = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+  const outfield = state.slots.filter(s => s.id && s.zone !== "GK").map(s => byId[s.id]);
+  const g = keys => avg(outfield.flatMap(p => keys.map(k => p.stats[k]).filter(v => v != null)));
+  $("sum").innerHTML = [["평균 OVR", avg(ps.map(p => p.ovr))], ["선수 수", ps.length, 1],
+    ["공격 평균", g(FGROUPS.공격)], ["신체 평균", g(FGROUPS.신체)], ["수비 평균", g(FGROUPS.수비)]]
+    .map(([n, v, int]) => `<div><b>${int ? v + " / 11" : v ? v.toFixed(1) : "-"}</b><span>${n}</span></div>`).join("");
+  $("lineup").innerHTML = [...state.slots.keys()].sort((a, b) => ZONES.indexOf(state.slots[a].zone) - ZONES.indexOf(state.slots[b].zone)).map(i => {
+    const s = state.slots[i], p = byId[s.id];
+    return `<div class="li"><span>${s.zone}</span><span>${p ? `${esc(p.name)} <b>${p.ovr}</b>` : "-"}</span></div>`;
+  }).join("");
+}
+
+// 드래그로 포지션 이동
+const fieldEl = $("field");
+fieldEl.addEventListener("dragstart", e => {
+  const c = e.target.closest(".card"); if (!c) return;
+  dragging = +c.dataset.i; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(dragging));
+});
+fieldEl.addEventListener("dragend", () => { dragging = -1; render(); });
+fieldEl.addEventListener("dragover", e => {
+  const z = e.target.closest(".zone"); if (!z || dragging < 0) return;
+  e.preventDefault();
+  document.querySelectorAll(".zone.over").forEach(x => x !== z && x.classList.remove("over")); z.classList.add("over");
+});
+fieldEl.addEventListener("drop", e => {
+  const z = e.target.closest(".zone"); if (!z || dragging < 0) return;
+  e.preventDefault(); state.slots[dragging].zone = z.dataset.zone; dragging = -1; save(); render();
+});
+
+// 칸 클릭: 선수 선택 / 포지션 이동
+fieldEl.addEventListener("click", e => {
+  const c = e.target.closest(".card"); if (!c) return;
+  editing = +c.dataset.i;
+  $("dt").textContent = state.slots[editing].zone + " 자리";
+  $("mvsel").innerHTML = ZONES.map(z => `<option ${z === state.slots[editing].zone ? "selected" : ""}>${z}</option>`).join("");
+  $("dq").value = ""; list(); $("dlg").showModal(); $("dq").focus();
+});
+$("mvsel").onchange = () => { state.slots[editing].zone = $("mvsel").value; $("dt").textContent = $("mvsel").value + " 자리"; save(); render(); list(); };
+
+function list() {
+  const q = $("dq").value.trim().toLowerCase();
+  const zone = state.slots[editing].zone;
+  const used = new Set(state.slots.map(s => s.id));
+  const items = PLAYERS.filter(p => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q));
+  const usePos = $("dpos").checked;
+  items.sort((a, b) => (usePos ? FIT_ORDER[fit(a, zone)] - FIT_ORDER[fit(b, zone)] : 0) || b.ovr - a.ovr);
+  $("dres").innerHTML = items.slice(0, 80).map(p => `
+    <div class="it" data-id="${p.id}"><b>${p.ovr}</b>
+    <div>${esc(p.name)}${used.has(p.id) ? " (배치됨)" : ""}<br><small>${esc(p.pos)} · ${esc(p.team)}</small></div></div>`).join("")
+    || '<div style="padding:16px;color:var(--sub)">검색 결과가 없어요</div>';
+}
+$("dq").oninput = list; $("dpos").onchange = list;
+$("dclose").onclick = () => $("dlg").close();
+$("drm").onclick = () => { state.slots[editing].id = null; save(); render(); $("dlg").close(); };
+$("dres").onclick = e => {
+  const el = e.target.closest(".it"); if (!el) return;
+  const j = state.slots.findIndex(s => s.id === el.dataset.id);
+  if (j >= 0) state.slots[j].id = null;     // 이미 다른 자리에 있으면 옮긴다
+  state.slots[editing].id = el.dataset.id; save(); render(); $("dlg").close();
+};
+
+/* ---------- 시작 ---------- */
+search(); renderDetail(null); render();
+{
+  const fromHash = location.hash.slice(1);
+  const start = ["search", "formation"].includes(fromHash) ? fromHash : store.get("efootball-tab");
+  showTab(["search", "formation"].includes(start) ? start : "search");
+}
+</script></body></html>
